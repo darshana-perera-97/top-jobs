@@ -4,6 +4,8 @@ const cors = require("cors");
 const fs = require("fs");
 const path = require("path");
 const OpenAI = require("openai");
+const bcrypt = require("bcrypt");
+const nodemailer = require("nodemailer");
 
 const app = express();
 const PORT = 5012;
@@ -181,6 +183,145 @@ app.get("/getJobDetails/:id", (req, res) => {
     }
   });
 });
+
+const USERS_FILE = "users.json";
+
+// Read users from file
+const readUsers = () => {
+  if (!fs.existsSync(USERS_FILE)) return [];
+  const data = fs.readFileSync(USERS_FILE);
+  return JSON.parse(data);
+};
+
+// Write users to file
+const writeUsers = (users) => {
+  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+};
+
+// Generate a 6-digit OTP
+const generateOTP = () =>
+  Math.floor(100000 + Math.random() * 900000).toString();
+
+// SMTP Transporter for sending emails
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: "ds.perera.test@gmail.com", // Replace with your email
+    pass: "ycfdgqfhinumrzjx", // Replace with your app password
+  },
+});
+
+// API to register user and send OTP
+app.post("/api/users", (req, res) => {
+  const { username, email } = req.body;
+
+  if (!username || !email) {
+    return res
+      .status(400)
+      .json({ message: "Username and Email are required!" });
+  }
+
+  const users = readUsers();
+  const existingUser = users.find((user) => user.email === email);
+
+  if (existingUser && existingUser.isVerified) {
+    return res.status(400).json({ message: "Email already verified!" });
+  }
+
+  const otp = generateOTP();
+  const newUser = { username, email, otp, isVerified: false };
+
+  if (existingUser) {
+    existingUser.otp = otp;
+    existingUser.isVerified = false;
+  } else {
+    users.push(newUser);
+  }
+
+  writeUsers(users);
+
+  // Send OTP email
+  const mailOptions = {
+    from: "your-email@gmail.com",
+    to: email,
+    subject: "Your OTP Code",
+    text: `Your OTP code is: ${otp}`,
+  };
+
+  transporter.sendMail(mailOptions, (error) => {
+    if (error) {
+      return res.status(500).json({ message: "Error sending OTP" });
+    }
+    res.json({ success: true, message: "OTP sent to email!" });
+  });
+});
+
+// Verify OTP
+app.post("/api/verify-otp", (req, res) => {
+  const { email, otp } = req.body;
+  let users = readUsers();
+  const userIndex = users.findIndex((user) => user.email === email);
+
+  if (userIndex === -1) {
+    return res.status(400).json({ message: "Email not found!" });
+  }
+
+  if (users[userIndex].otp !== otp) {
+    return res.status(400).json({ message: "Invalid OTP" });
+  }
+
+  users[userIndex].isVerified = true;
+  users[userIndex].otp = null; // Remove OTP after verification
+  writeUsers(users);
+
+  res.json({ success: true, message: "OTP verified successfully!" });
+});
+
+// Set Password
+app.post("/api/set-password", async (req, res) => {
+  const { email, password } = req.body;
+  let users = readUsers();
+  const userIndex = users.findIndex((user) => user.email === email);
+
+  if (userIndex === -1)
+    return res.status(400).json({ message: "Email not found!" });
+
+  // Hash the password before saving
+  const hashedPassword = await bcrypt.hash(password, 10);
+  users[userIndex].password = hashedPassword;
+  writeUsers(users);
+
+  res.json({ success: true, message: "Password set successfully!" });
+});
+
+
+// Login User
+app.post("/api/login", async (req, res) => {
+  const { identifier, password } = req.body;
+  let users = readUsers();
+
+  // Find user by email or username
+  const user = users.find(
+    (u) => u.email === identifier || u.username === identifier
+  );
+
+  if (!user) {
+    return res.status(400).json({ message: "User not found!" });
+  }
+
+  // Verify password
+  const isPasswordMatch = await bcrypt.compare(password, user.password);
+  if (!isPasswordMatch) {
+    return res.status(400).json({ message: "Invalid password!" });
+  }
+
+  res.json({
+    success: true,
+    message: "Login successful!",
+    user: { username: user.username, email: user.email },
+  });
+});
+
 
 // Start server
 app.listen(PORT, () => {

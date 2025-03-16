@@ -8,6 +8,8 @@ import UserLogin from "./Pages/UserLogin";
 import ViewJobs from "./Pages/ViewJobs";
 import NavigationBar from "./Layouts/Navbar";
 import JobDetails from "./Pages/JobDetails";
+import Profile from "./Pages/Profile";
+import UserLoginForm from "./Pages/UserLoginForm";
 
 export default function Design() {
   return (
@@ -22,6 +24,8 @@ export default function Design() {
           <Route path="/user-login" element={<UserLogin />} />
           <Route path="/view-jobs" element={<ViewJobs />} />
           <Route path="/job/:id" element={<JobDetails />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/login" element={<UserLoginForm />} />
         </Routes>
       </Router>
     </div>
