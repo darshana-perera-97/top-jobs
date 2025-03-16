@@ -6,9 +6,12 @@ const path = require("path");
 const OpenAI = require("openai");
 const bcrypt = require("bcrypt");
 const nodemailer = require("nodemailer");
+const multer = require("multer");
+const bodyParser = require("body-parser");
 
 const app = express();
 const PORT = 5012;
+app.use(bodyParser.json());
 
 // Enable CORS and JSON parsing
 app.use(cors());
@@ -294,7 +297,6 @@ app.post("/api/set-password", async (req, res) => {
   res.json({ success: true, message: "Password set successfully!" });
 });
 
-
 // Login User
 app.post("/api/login", async (req, res) => {
   const { identifier, password } = req.body;
@@ -318,10 +320,71 @@ app.post("/api/login", async (req, res) => {
   res.json({
     success: true,
     message: "Login successful!",
-    user: { username: user.username, email: user.email },
+    user: {
+      username: user.username,
+      email: user.email,
+      categories: user.categories,
+      cv: user.cv,
+    },
   });
 });
 
+// Configure multer for file storage
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "cvUploads/"); // Save files inside cvUploads
+  },
+  filename: (req, file, cb) => {
+    const fileExt = path.extname(file.originalname);
+    const fileName = `${Date.now()}-${file.originalname}`;
+    cb(null, fileName);
+  },
+});
+const upload = multer({ storage: storage });
+
+app.post("/api/updateUserCategories", upload.single("cv"), (req, res) => {
+  const { username, email, categories } = req.body;
+  const cvFileName = req.file ? req.file.filename : null;
+
+  if (!categories || categories.length === 0) {
+    return res
+      .status(400)
+      .json({ success: false, message: "All fields are required." });
+  }
+
+  fs.readFile("users.json", (err, data) => {
+    let users = [];
+    if (!err) {
+      users = JSON.parse(data);
+    }
+
+    // Find existing user or add a new one
+    const userIndex = users.findIndex((user) => user.email === email);
+    if (userIndex !== -1) {
+      users[userIndex].categories = JSON.parse(categories);
+      if (cvFileName) {
+        users[userIndex].cv = cvFileName;
+      }
+    } else {
+      users.push({
+        username,
+        email,
+        categories: JSON.parse(categories),
+        cv: cvFileName,
+      });
+    }
+
+    // Save updated user data
+    fs.writeFile("users.json", JSON.stringify(users, null, 2), (writeErr) => {
+      if (writeErr) {
+        return res
+          .status(500)
+          .json({ success: false, message: "Failed to update user data." });
+      }
+      res.json({ success: true, message: "Data updated successfully." });
+    });
+  });
+});
 
 // Start server
 app.listen(PORT, () => {
