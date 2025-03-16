@@ -6,18 +6,24 @@ import SingleJob from "./Pages/SingleJob";
 import UserData from "./Pages/UserData";
 import UserLogin from "./Pages/UserLogin";
 import ViewJobs from "./Pages/ViewJobs";
+import NavigationBar from "./Layouts/Navbar";
+import JobDetails from "./Pages/JobDetails";
 
 export default function Design() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/add-job" element={<AddJob />} />
-        <Route path="/single-job" element={<SingleJob />} />
-        <Route path="/user-data" element={<UserData />} />
-        <Route path="/user-login" element={<UserLogin />} />
-        <Route path="/view-jobs" element={<ViewJobs />} />
-      </Routes>
-    </Router>
+    <div>
+      <Router>
+        <NavigationBar />
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/add-job" element={<AddJob />} />
+          <Route path="/single-job" element={<SingleJob />} />
+          <Route path="/user-data" element={<UserData />} />
+          <Route path="/user-login" element={<UserLogin />} />
+          <Route path="/view-jobs" element={<ViewJobs />} />
+          <Route path="/job/:id" element={<JobDetails />} />
+        </Routes>
+      </Router>
+    </div>
   );
 }

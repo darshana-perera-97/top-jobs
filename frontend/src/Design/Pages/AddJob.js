@@ -1,7 +1,10 @@
-import React from 'react'
+import React from "react";
+import AddJobForm from "../Components/AddJobForm";
 
 export default function AddJob() {
   return (
-    <div>AddJob</div>
-  )
+    <div>
+      <AddJobForm />
+    </div>
+  );
 }
